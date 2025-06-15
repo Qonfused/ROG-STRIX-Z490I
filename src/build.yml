@@ -1,0 +1,77 @@
+---
+version: latest
+build: DEBUG
+---
+ACPI:
+  SSDT-AWAK: "ACPI/SSDT-AWAC.dsl"
+  SSDT-EC-USBX: "ACPI/SSDT-EC-USBX.dsl"
+  SSDT-PLUG: "ACPI/SSDT-PLUG.dsl"
+  SSDT-RHUB: "ACPI/SSDT-RHUB.dsl"
+  SSDT-SBUS-MCHC: "ACPI/SSDT-SBUS-MCHC.dsl"
+Drivers:
+  - HfsPlus
+@ifdef(RELEASE)
+  - OpenCanopy
+@endif
+  - OpenRuntime
+Kexts:
+  Lilu: latest
+  WhateverGreen: latest
+  AppleALC: latest
+  # VirtualSMC + plugins
+  VirtualSMC: latest
+  SMCBatteryManager: "*"
+  SMCProcessor: "*"
+  SMCSuperIO: "*"
+  SMCRadeonSensors: ChefKissInc/SMCRadeonSensors=latest
+  # Wi-Fi / Bluetooth
+  AirportItlwm-Sonoma-14.4:
+    specifier: OpenIntelWireless/itlwm=^2.3.0-alpha 
+    properties:
+      MaxKernel: "23.99.99"
+      MinKernel: "23.4.0"
+  AirportItlwm-Sonoma-14.0:
+    specifier: OpenIntelWireless/itlwm=^2.3.0-alpha 
+    properties:
+      MaxKernel: "23.3.99"
+      MinKernel: "23.0.0"
+  AirportItlwm-Ventura:
+    specifier: OpenIntelWireless/itlwm=^2.2.0
+    properties:
+      MaxKernel: "22.99.99"
+      MinKernel: "22.0.0"
+  AirportItlwm-Monterey:
+    specifier: OpenIntelWireless/itlwm=^2.0.0
+    properties:
+      MaxKernel: "21.99.99"
+      MinKernel: "21.0.0"
+  AirportItlwm-BigSur:
+    specifier: OpenIntelWireless/itlwm=^2.0.0
+    properties:
+      MaxKernel: "20.99.99"
+      MinKernel: "20.0.0"
+  AirportItlwm-Catalina:
+    specifier: OpenIntelWireless/itlwm=^2.0.0
+    properties:
+      MaxKernel: "19.99.99"
+      MinKernel: "19.0.0"
+  BlueToolFixup:
+    specifier: acidanthera/BrcmPatchRAM=latest
+    properties:
+      MinKernel: "21.0.0"
+  IntelBluetoothFirmware: OpenIntelWireless/IntelBluetoothFirmware=latest
+  IntelBluetoothInjector:
+    specifier: "*"
+    properties:
+      MaxKernel: "20.99.99"
+  IntelBTPatcher: "*"
+  # Misc. Lilu plugins
+  DiskArbitrationFixup: Qonfused/DiskArbitrationFixup=latest
+  NVMeFix: latest
+  # Misc. non-Lilu kexts
+  AppleIntelI210Ethernet: "Kexts/AppleIntelI210Ethernet.kext"
+  # USBToolBox: USBToolbox/kext=latest
+  # UTBMap: "Kexts/UTBMap.kext"
+  USBPorts: "Kexts/USBPorts.kext"
+Tools:
+  - OpenShell
