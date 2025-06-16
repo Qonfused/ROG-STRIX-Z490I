@@ -7,7 +7,6 @@ ACPI:
   SSDT-EC-USBX: "ACPI/SSDT-EC-USBX.dsl"
   SSDT-PLUG: "ACPI/SSDT-PLUG.dsl"
   SSDT-RHUB: "ACPI/SSDT-RHUB.dsl"
-  SSDT-SBUS-MCHC: "ACPI/SSDT-SBUS-MCHC.dsl"
 Drivers:
   - HfsPlus
 @ifdef(RELEASE)
@@ -68,10 +67,10 @@ Kexts:
   # Misc. Lilu plugins
   DiskArbitrationFixup: Qonfused/DiskArbitrationFixup=latest
   NVMeFix: latest
+  RestrictEvents: latest
   # Misc. non-Lilu kexts
-  AppleIntelI210Ethernet: "Kexts/AppleIntelI210Ethernet.kext"
-  # USBToolBox: USBToolbox/kext=latest
-  # UTBMap: "Kexts/UTBMap.kext"
-  USBPorts: "Kexts/USBPorts.kext"
+  AppleIGC: SongXiaoXi/AppleIGC=latest
+  USBToolBox: USBToolbox/kext=latest
+  UTBMap: "Kexts/UTBMap.kext"
 Tools:
   - OpenShell

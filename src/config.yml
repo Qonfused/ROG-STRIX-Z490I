@@ -136,6 +136,9 @@ Booter:
     # Reduces stolen memory footprint by removing runtime attributes from known
     # MMIO regions. Saves between 64-256 MB of memory for bootloader allocation.
     DevirtualiseMmio:                 Boolean | true
+    # Disables memory map analysis of firmware as all slides (1-255) are usable.
+    EnableSafeModeSlide:              Boolean | false
+    ProvideCustomSlide:               Boolean | false
     # Prevents kernel panic on `Invalid frame pointer`.
     # - Addresses macOS conflict with CR0 MRS register.
     # - https://dortania.github.io/OpenCore-Install-Guide/troubleshooting/extended/kernel-issues.html#kernel-panic-on-invalid-frame-pointer
@@ -168,6 +171,7 @@ Kernel:
     #   Windows or Linux.
     # - Note: Is equivalent to disabling `VT-D` in BIOS.
     DisableIoMapper:                  Boolean | true
+    DisableIoMapperMapping:           Boolean | true
 
 ################################################################################
 #                                  Boot Fixes                                  #
@@ -199,41 +203,40 @@ Kernel:
     SetApfsTrimTimeout:               Number  | 0
 
 ################################################################################
-#                                Ethernet Fixes                                #
+#                           CPU/Graphics related fixes                         #
 ################################################################################
-
-DeviceProperties:
-  Add:
-    # Configures the Intel I225-V 2.5GbE Ethernet controller.
-    # - Uses Apple's I225LM driver for compatibility.
-    PciRoot(0x0)/Pci(0x1C,0x1)/Pci(0x0,0x0):
-    # PciRoot(0x0)/Pci(0x1C,0x4)/Pci(0x0,0x0):
-      device-id:                      Data    | <F2158680>
-      # device-id:                      Data    | <F2150000>
-      model:                          String  | "Intel I225-V Ethernet"
-
-Kernel:
-  Patch:
-    - Base:                           String  | "__Z18e1000_set_mac_typeP8e1000_hw"
-      Comment:                        String  | "Intel I225-V Patch"
-      Count:                          Number  | 1
-      Find:                           Data    | <F2150000>
-      Identifier:                     String  | "com.apple.driver.AppleIntelI210Ethernet"
-      MaxKernel:                      String  | "20.4.0"
-      MinKernel:                      String  | "19.0.0"
-      Replace:                        Data    | <F3150000>
 
 NVRAM:
   Add:
-    7C436110-AB2A-4BBB-A880-FE41995C9F82:
-      @append(" ")
-      boot-args:           String  | "dk.e1000=0 e1000=0"
-      # boot-args:           String  | "dk.e1000=0"
+    # Spoof CPU name (cosmetic)
+    # - This leverages functionality from the RestrictEvents kext (`revcpu=1`).
+    4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:
+      revcpu:                         Number  | 1
+      revcpuname:                     String  | "Intel Core i9-10900K CPU @ 3.70GHz"
+PlatformInfo:
+  Generic:
+    # Sets the processor type to a 10-core Intel Core i9 CPU.
+    # https://github.com/acidanthera/OpenCorePkg/blob/7e39fed/Include/Apple/IndustryStandard/AppleSmBios.h#L71-L148C5
+    ProcessorType:                    Number  | 4097
+
+DeviceProperties:
+  Add:
+    # Headless mode for UHD 630 (only for computing tasks).
+    # - Use <0300C89B> for computing tasks (headless mode) without a display.
+    # - Use <07009B3E> or <00009B3E> to drive a display using the iGPU.
+    PciRoot(0x0)/Pci(0x2,0x0):
+      AAPL,ig-platform-id:            Data    | <0300C89B>
+      model:                          String  | "Intel UHD Graphics 630"
 
 ################################################################################
-#                                  PCI Fixes                                   #
+#                             Audio related fixes                              #
 ################################################################################
 
+# Remove redundant audio device from Sample.plist
+@delete(DeviceProperties.Add.PciRoot(0x0)/Pci(0x1b,0x0))
+
+# Audio controllers fix
+# - https://dortania.github.io/OpenCore-Post-Install/universal/audio.html
 DeviceProperties:
   Add:
     # Fixes the audio layout for the Realtek ALCS1220A controller.
@@ -241,9 +244,66 @@ DeviceProperties:
     PciRoot(0x0)/Pci(0x1F,0x3):
       layout-id:                      Data    | <07000000>
       model:                          String  | "ASUS SupremeFX S1220A"
-    # Headless mode for UHD 630 (only for computing tasks).
-    # - Use <0300C89B> for computing tasks (headless mode) without a display.
-    # - Use <07009B3E> or <00009B3E> to drive a display using the iGPU.
-    PciRoot(0x0)/Pci(0x2,0x0):
-      AAPL,ig-platform-id:            Data    | <0300C89B>
-      model:                          String  | "Intel UHD Graphics 630"
+
+# Configure Boot chime (optional and also cosmetic)
+# - https://dortania.github.io/OpenCore-Post-Install/cosmetic/gui.html#setting-up-boot-chime-with-audiodxe
+NVRAM:
+  Add:
+    7C436110-AB2A-4BBB-A880-FE41995C9F82:
+      SystemAudioVolume:              Data    | <28>
+UEFI:
+  Audio:
+    AudioDevice:                      String  | "PciRoot(0x0)/Pci(0x1F,0x3)"
+    AudioOutMask:                     Number  | -1
+    AudioSupport:                     Boolean | true
+    PlayChime:                        String  | "Disabled"
+
+################################################################################
+#                           Platform (SMBIOS) fixes                            #
+################################################################################
+
+# Spoof device SMBIOS as iMac20,2 or A2115 (EMC 3442) model.
+# - Affects CPU power management in macOS (XCPM).
+# - Affects iGPU display outputs in macOS (AGDP).
+# - https://dortania.github.io/OpenCore-Install-Guide/extras/smbios-support.html
+PlatformInfo:
+  Generic:
+    SystemProductName:                String  | "iMac20,2"
+
+# Forces the VMM SB model on macOS 11.3+ to allow OTA updates
+# - This leverages functionality from the RestrictEvents kext.
+# - Requires a build from the `force-vmm-install` branch for fresh installs.
+NVRAM:
+  Add:
+    4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:
+      revpatch:                       String  | "sbvmm"
+
+################################################################################
+#                             Security related fixes                           #
+################################################################################
+
+Misc:
+  # Note: Combine the `j185f` SecureBootModel with ApCEID for full security.
+  # - https://dortania.github.io/OpenCore-Post-Install/universal/security/applesecureboot.html#apecid
+  Security:
+    # Apple Secure Boot hardware model and policy
+    # - Possible values include:
+    #   - Disabled: No model, Secure Boot will be disabled.
+    #   - Default: Currently set to x86legacy
+    #   - j185f: Secure Boot policy for iMac20,2
+    # - https://dortania.github.io/OpenCore-Post-Install/universal/security/applesecureboot.html#securebootmodel
+    SecureBootModel:                  String  | "Disabled"
+#     SecureBootModel:                  String  | "j185f"
+    # OpenCore vaulting configuration (optional=no vault enforced, insecure)
+    # - https://dortania.github.io/OpenCore-Post-Install/universal/security/vault.html
+    Vault:                            String  | "Optional"
+NVRAM:
+  Add:
+    7C436110-AB2A-4BBB-A880-FE41995C9F82:
+      # Enables System Integrity Protection (SIP) setting in macOS.
+      # - Possible values include:
+      #   - 00000000: Default (enabled)
+      #   - 67000000: Disables all SIP protections
+      #   - 03000000: Disables Kext signing and filesystem restrictions.
+      # - https://dortania.github.io/OpenCore-Install-Guide/troubleshooting/extended/post-issues.html#disabling-sip
+      csr-active-config:              Data    | <00000000>
